@@ -7,7 +7,7 @@ import com.littlepay.trip.enumeration.TripType;
 import com.littlepay.trip.repository.TapRepository;
 import com.littlepay.trip.repository.TripRepository;
 import com.littlepay.trip.service.TripService;
-import com.littlepay.trip.util.Converter;
+import com.littlepay.trip.util.Mapper;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,22 +25,47 @@ public class TripServiceImpl implements TripService {
     @Override
     public void generateTrips() {
         List<Tap> tapsList = tapRepository.getTapsList();
-        List<Trip> tripList = processTaps(tapsList);
+        List<Trip> tripList = createTripsFromTaps(tapsList);
         tripRepository.registerTrips(tripList);
     }
 
+    @Override
+    public TripType getTripType(Trip trip) {
+        if (trip.getFromStopId() == trip.getToStopId()) {
+            return TripType.CANCELLED;
+        } else if (trip.getToStopId() == null) {
+            return TripType.INCOMPLETE;
+        } else {
+            return TripType.COMPLETED;
+        }
+    }
 
-    private List<Trip> processTaps(List<Tap> tapsList) {
+    @Override
+    public double findChargeAmount(Trip trip) {
+        double[][] tripsCharges = tripRepository.getTripChargeList();
+        double chargeAmount = 0;
+        switch (trip.getTripType()) {
+            case COMPLETED -> chargeAmount = tripsCharges[trip.getFromStopId().getValue()][trip.getToStopId().getValue()];
+            case INCOMPLETE -> {
+                double[] relatedCharges = tripsCharges[trip.getFromStopId().getValue()];
+                chargeAmount = Arrays.stream(relatedCharges).max().getAsDouble();
+            }
+        }
+        return chargeAmount;
+    }
+
+
+    private List<Trip> createTripsFromTaps(List<Tap> tapsList) {
         List<Trip> allTrips = new ArrayList<>();
 
-        Map<String, List<Tap>> mapOfTapsByPan = Converter.convertTapListToMap(tapsList);
+        Map<String, List<Tap>> mapOfTapsByPan = Mapper.mapTapListToMapOfPanAndTaps(tapsList);
         for (String pan : mapOfTapsByPan.keySet()) {
-            allTrips.addAll(createTripList(mapOfTapsByPan.get(pan)));
+            allTrips.addAll(createTripListOfASpecificPan(mapOfTapsByPan.get(pan)));
         }
         return allTrips.stream().sorted(Comparator.comparing(Trip::getStarted)).collect(Collectors.toList());
     }
 
-    private List<Trip> createTripList(List<Tap> taps) {
+    private List<Trip> createTripListOfASpecificPan(List<Tap> taps) {
         List<Trip> tripList = new ArrayList<>();
         Trip trip = null;
         Tap previousTap = null;
@@ -93,31 +118,6 @@ public class TripServiceImpl implements TripService {
         trip.setFromStopId(tap.getStopId());
         trip.setCompanyId(tap.getCompanyId());
         trip.setBusId(tap.getBusId());
-    }
-
-    @Override
-    public TripType getTripType(Trip trip) {
-        if (trip.getFromStopId() == trip.getToStopId()) {
-            return TripType.CANCELLED;
-        } else if (trip.getToStopId() == null) {
-            return TripType.INCOMPLETE;
-        } else {
-            return TripType.COMPLETED;
-        }
-    }
-
-    @Override
-    public double findChargeAmount(Trip trip) {
-        double[][] tripsCharges = tripRepository.getTripChargeList();
-        double chargeAmount = 0;
-        switch (trip.getTripType()) {
-            case COMPLETED -> chargeAmount = tripsCharges[trip.getFromStopId().getValue()][trip.getToStopId().getValue()];
-            case INCOMPLETE -> {
-                double[] relatedCharges = tripsCharges[trip.getFromStopId().getValue()];
-                chargeAmount = Arrays.stream(relatedCharges).max().getAsDouble();
-            }
-        }
-        return chargeAmount;
     }
 
 

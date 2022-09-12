@@ -2,7 +2,7 @@ package com.littlepay.trip.repository.impl;
 
 import com.littlepay.trip.dto.Tap;
 import com.littlepay.trip.repository.TapRepository;
-import com.littlepay.trip.util.Converter;
+import com.littlepay.trip.util.Mapper;
 import com.littlepay.trip.util.FileUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -17,7 +17,7 @@ public class TapRepositoryImpl implements TapRepository {
 
     @Override
     public List<Tap> getTapsList() {
-        return Converter.convertToTapList(FileUtil.readFile(fileName));
+        return Mapper.mapToTapList(FileUtil.readFile(fileName));
     }
 
 
