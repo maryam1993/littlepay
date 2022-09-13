@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class Mapper {
+public class ObjectMapper {
 
     public static List<Tap> mapToTapList(List<String[]> tapData) {
 
@@ -31,6 +31,6 @@ public class Mapper {
     }
 
     public static Map<String, List<Tap>> mapTapListToMapOfPanAndTaps(List<Tap> taps) {
-        return taps.stream().collect(Collectors.groupingBy(Tap::getPan));
+        return taps.stream().sorted(Comparator.comparing(Tap::getTapDateTime)).collect(Collectors.groupingBy(Tap::getPan));
     }
 }

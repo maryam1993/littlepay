@@ -1,4 +1,4 @@
-package com.littlepay.trip.constant;
+package com.littlepay.trip.resources;
 
 import com.littlepay.trip.enumeration.Stops;
 

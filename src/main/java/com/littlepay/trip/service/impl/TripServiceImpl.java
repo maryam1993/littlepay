@@ -7,8 +7,9 @@ import com.littlepay.trip.enumeration.TripType;
 import com.littlepay.trip.repository.TapRepository;
 import com.littlepay.trip.repository.TripRepository;
 import com.littlepay.trip.service.TripService;
-import com.littlepay.trip.util.Mapper;
+import com.littlepay.trip.util.ObjectMapper;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class TripServiceImpl implements TripService {
 
     private TapRepository tapRepository;
@@ -24,9 +26,15 @@ public class TripServiceImpl implements TripService {
 
     @Override
     public void generateTrips() {
+        log.info("starting the generating trips process...");
         List<Tap> tapsList = tapRepository.getTapsList();
+
+        log.info("starting the process of creating trips from given taps...");
         List<Trip> tripList = createTripsFromTaps(tapsList);
+
         tripRepository.registerTrips(tripList);
+
+        log.info("process ended successfully!");
     }
 
     @Override
@@ -54,14 +62,16 @@ public class TripServiceImpl implements TripService {
         return chargeAmount;
     }
 
-
-    private List<Trip> createTripsFromTaps(List<Tap> tapsList) {
+    @Override
+    public List<Trip> createTripsFromTaps(List<Tap> tapsList) {
         List<Trip> allTrips = new ArrayList<>();
-
-        Map<String, List<Tap>> mapOfTapsByPan = Mapper.mapTapListToMapOfPanAndTaps(tapsList);
+// creates a map of each specific pan and the related taps
+        Map<String, List<Tap>> mapOfTapsByPan = ObjectMapper.mapTapListToMapOfPanAndTaps(tapsList);
         for (String pan : mapOfTapsByPan.keySet()) {
+// creates related trips from the taps
             allTrips.addAll(createTripListOfASpecificPan(mapOfTapsByPan.get(pan)));
         }
+        log.info("All the trips have been created.");
         return allTrips.stream().sorted(Comparator.comparing(Trip::getStarted)).collect(Collectors.toList());
     }
 
@@ -71,22 +81,26 @@ public class TripServiceImpl implements TripService {
         Tap previousTap = null;
 
         for (Tap tap : taps) {
+            // if there is no tap off, trip will be completed here
             if (tap.getTapType() == TapType.ON && previousTap != null &&
                     isIncompleteTrip(previousTap, tap)) {
                 fillEndOfTripForIncompleteTrips(trip);
                 tripList.add(trip);
                 previousTap = null;
             }
+            // create a new trip for a new tap on
             if (tap.getTapType() == TapType.ON && previousTap == null) {
                 previousTap = tap;
                 trip = new Trip();
                 fillStartOfTrip(tap, trip);
+                // complete the trip object which tap on has created
             } else if (tap.getTapType() == TapType.OFF && trip != null) {
                 fillEndOfTrip(tap, trip);
                 tripList.add(trip);
                 previousTap = null;
             }
         }
+        // if there is no tap off for the last tap on, here the trip will be completed.
         if (previousTap != null) {
             fillEndOfTripForIncompleteTrips(trip);
             tripList.add(trip);
@@ -119,6 +133,4 @@ public class TripServiceImpl implements TripService {
         trip.setCompanyId(tap.getCompanyId());
         trip.setBusId(tap.getBusId());
     }
-
-
 }
